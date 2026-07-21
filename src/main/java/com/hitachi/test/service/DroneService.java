@@ -16,7 +16,7 @@ public interface DroneService {
 
   Map<String, Long> checkDroneBatteryStatus();
 
-  DroneLoadResponseDto droneLoad(DroneLoadDto dto);
+  DroneLoadResponseDto droneLoad(DroneLoadDto dto) throws Exception;
 
   DroneLoadStatusDto checkDroneStatus(PayloadDto dto);
 }

@@ -4,7 +4,6 @@ import com.hitachi.test.dto.DroneLoadDto;
 import com.hitachi.test.dto.DroneLoadResponseDto;
 import com.hitachi.test.dto.DroneLoadStatusDto;
 import com.hitachi.test.dto.PayloadDto;
-import com.hitachi.test.enums.DroneModelEnum;
 import com.hitachi.test.model.Drone;
 import com.hitachi.test.service.DroneService;
 import org.springframework.http.ResponseEntity;
@@ -39,7 +38,7 @@ public class DroneController {
   }
 
   @PostMapping("/drone-load")
-  public ResponseEntity<Map<String, Object>> droneLoad(@RequestBody DroneLoadDto dto) {
+  public ResponseEntity<Map<String, Object>> droneLoad(@RequestBody DroneLoadDto dto) throws Exception {
     DroneLoadResponseDto response = droneService.droneLoad(dto);
     if(response.getDroneSerial() == null) {
       return ResponseEntity.internalServerError()
@@ -61,7 +60,7 @@ public class DroneController {
     }
     return ResponseEntity.ok(Map.of(
       MESSAGE, "Drone status is generated successfully",
-      DATA, droneService.checkDroneStatus(dto)
+      DATA, loadStatusDto
     ));
   }
 

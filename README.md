@@ -65,12 +65,12 @@ IDLE
 
 # Drone Models
 
-| Model | Maximum Payload |
-|--------|----------------:|
-| Lightweight | 500 g |
-| Middleweight | 1000 g |
-| Cruiserweight | 1500 g |
-| Heavyweight | 3000 g |
+| Model         | Maximum Capacity |
+|---------------|-----------------:|
+| Lightweight   |               10 |
+| Middleweight  |               20 |
+| Cruiserweight |               30 |
+| Heavyweight   |               40 |
 
 > **Note:** Payload capacities are implementation assumptions as allowed by the assessment.
 
@@ -155,10 +155,10 @@ The application automatically preloads sample data during startup.
 
 | Model         | Quantity | Payload Capacity |
 |---------------|---------:|-----------------:|
-| Lightweight   |        3 |            500 g |
-| Middleweight  |        2 |           1000 g |
-| Cruiserweight |        3 |           1500 g |
-| Heavyweight   |        2 |           3000 g |
+| Lightweight   |        3 |               10 |
+| Middleweight  |        2 |               20 |
+| Cruiserweight |        3 |               30 |
+| Heavyweight   |        2 |               40 |
 
 ---
 
@@ -187,22 +187,12 @@ POST /drone/register
 ```
 ```json
 {
-    "message": "Drone registered successfully",
-    "data": {
-        "model": "LIGHTWEIGHT",
-        "batteryPercentage": 100,
-        "createdAt": "2026-07-21T13:46:38.831226",
-        "id": 11,
-        "loadChecker": {
-            "currentWeight": null,
-            "medicationCode": null,
-            "medicationQuantity": null,
-            "medicationWeight": null
-        },
-        "serialNumber": "00000000000000000011-LW-7cd24d64-9de7-4a2b-b3b0-0ddd668fc6db",
-        "state": "IDLE",
-        "weightLimit": 500
-    }
+  "data": {
+    "model": "LIGHTWEIGHT",
+    "serialNumber": "00000000000000000011-LW-bf9d9cec-d6ae-4d23-8dfd-bea5f9d8dedb",
+    "weightLimit": 500
+  },
+  "message": "Drone registered successfully"
 }
 ```
 Registers a new drone.

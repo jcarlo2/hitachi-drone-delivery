@@ -77,7 +77,6 @@ public class Initializer {
 
   @Scheduled(fixedDelay = 100000)
   public void scheduleBatteryChecker() {
-    System.out.println("FIXED DELAY");
     List<Drone> fullyChargedDrones = new ArrayList<>();
     ((DummyRedisServiceImpl)redisService).getDroneMap()
       .values()

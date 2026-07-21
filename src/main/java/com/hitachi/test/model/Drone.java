@@ -1,5 +1,6 @@
 package com.hitachi.test.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hitachi.test.dto.DroneSnapshot;
 import com.hitachi.test.dto.LoadChecker;
 import com.hitachi.test.enums.DroneModelEnum;
@@ -21,6 +22,7 @@ public class Drone {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @JsonIgnore
   Long id;
 
   @Getter(AccessLevel.NONE)
@@ -33,21 +35,25 @@ public class Drone {
 
   @Setter
   @Enumerated(EnumType.STRING)
+  @JsonIgnore
   private DroneStateEnum state;
 
   @Setter
+  @JsonIgnore
   private Integer batteryPercentage;
 
+  @JsonIgnore
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
   @Setter
+  @JsonIgnore
   private transient LoadChecker loadChecker;
 
   public Drone(DroneModelEnum model) {
     this.model = model;
     uuid = UUID.randomUUID().toString();
-    weightLimit = (int)(model.getWeightMultiplier() * defaultWeight);
+    weightLimit = defaultWeight;
     batteryPercentage = 100;
     state = DroneStateEnum.IDLE;
     loadChecker = new LoadChecker();

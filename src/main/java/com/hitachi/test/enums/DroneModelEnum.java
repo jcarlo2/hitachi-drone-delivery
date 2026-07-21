@@ -4,16 +4,16 @@ import lombok.Getter;
 
 @Getter
 public enum DroneModelEnum {
-  LIGHTWEIGHT("LW", 0.5),
-  MIDDLEWEIGHT("MW", 1),
-  CRUISERWEIGHT("CW", 1.5),
-  HEAVYWEIGHT("HW", 3);
+  LIGHTWEIGHT("LW", 10),
+  MIDDLEWEIGHT("MW", 20),
+  CRUISERWEIGHT("CW", 30),
+  HEAVYWEIGHT("HW", 40);
 
   private final String code;
-  private final double weightMultiplier;
+  private final int capacity;
 
-  DroneModelEnum(String code, double weightMultiplier) {
+  DroneModelEnum(String code, int capacity) {
     this.code = code;
-    this.weightMultiplier = weightMultiplier;
+    this.capacity = capacity;
   }
 }

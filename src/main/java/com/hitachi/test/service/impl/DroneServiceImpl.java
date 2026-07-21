@@ -4,12 +4,18 @@ import com.hitachi.test.dto.*;
 import com.hitachi.test.enums.CityEnum;
 import com.hitachi.test.enums.DroneModelEnum;
 import com.hitachi.test.enums.DroneStateEnum;
+import com.hitachi.test.exception.DroneUnavailableException;
 import com.hitachi.test.model.Drone;
 import com.hitachi.test.model.Medication;
 import com.hitachi.test.repository.DroneRepository;
 import com.hitachi.test.repository.MedicationRepository;
 import com.hitachi.test.service.DroneService;
 import jakarta.transaction.Transactional;
+import org.springframework.retry.RetryContext;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.retry.support.RetrySynchronizationManager;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -71,91 +77,126 @@ public class DroneServiceImpl implements DroneService {
       "61%% - 100%%", excellent
     );
   }
-
+  @Retryable(retryFor = Exception.class,  backoff = @Backoff(delay = 3000))
   @Override
   public DroneLoadResponseDto droneLoad(DroneLoadDto dto) {
-    DroneLoadResponseDto responseDto = new DroneLoadResponseDto();
-
+    RetryContext context = RetrySynchronizationManager.getContext();
     Medication medication = medicationRepository.findByCode(dto.getMedicationCode()).orElse(null);
-    if(medication == null) {
-      responseDto.setMessage("Invalid Medication");
-      return responseDto;
+    if (medication == null) {
+      return setDroneLoadResponse("Invalid Medication");
     }
 
-    // check all idle drones
-    List<Drone> idleDroneList = redisCache.getDroneMap().values().stream()
-      .filter(v -> DroneStateEnum.IDLE.equals(v.getState()))
+    List<Drone> availableDrones = getIdleDrones();
+    if (availableDrones.isEmpty()) {
+      return setDroneLoadResponse("There are no available drones at the moment. Please try again later!");
+    }
+
+    availableDrones = filterByBatteryRequirement(availableDrones, dto);
+    if (availableDrones.isEmpty()) {
+      return setDroneLoadResponse("All available drones do not meet the battery requirement.");
+    }
+
+    availableDrones = filterByWeightLimit(availableDrones, dto, medication);
+    if (availableDrones.isEmpty()) {
+      return setDroneLoadResponse("The requested payload exceeds the maximum weight of all available drones.");
+    }
+
+    availableDrones = filterByCapacity(availableDrones, dto);
+    if (availableDrones.isEmpty()) {
+      return setDroneLoadResponse("The requested payload exceeds the maximum capacity of all available drones.");
+    }
+
+    Drone selectedDrone = lockDrone(availableDrones);
+    if (selectedDrone == null) {
+      if (context != null) {
+        System.out.println("Retry attempt: " + context.getRetryCount());
+      }
+      String count = context == null ? "--" : String.valueOf(context.getRetryCount());
+      throw new DroneUnavailableException(String.format("Retrying (%s) to find an available drone ...", count));
+    }
+
+    processDroneLoading(selectedDrone, dto, medication);
+    DroneLoadResponseDto response = new DroneLoadResponseDto();
+    response.setDroneSerial(selectedDrone.getSerialNumber());
+    response.setMessage("Drone is now loading the medication ...");
+    return response;
+  }
+
+  @Recover
+  public DroneLoadResponseDto recover(DroneUnavailableException ignore, DroneLoadDto ignoreDto) {
+    System.out.println("Retries exhausted ...");
+    return setDroneLoadResponse("All drones that meet the delivery requirements are currently in use. Please try again later.");
+  }
+
+  private List<Drone> getIdleDrones() {
+    return redisCache.getDroneMap()
+      .values()
+      .stream()
+      .filter(drone -> DroneStateEnum.IDLE.equals(drone.getState()))
       .toList();
+  }
 
-    if(idleDroneList.isEmpty()) {
-      responseDto.setMessage("There are no available drones at the moment. Please try again later!");
-      return responseDto;
-    }
-
-    // checking battery requirement
-    List<Drone> optimalDrones = redisCache.getDroneMap().values().stream()
-      .filter(v ->
-        v.getBatteryPercentage() >= DEFAULT_DELIVERY_BATTERY_REQUIRED
-        && v.getBatteryPercentage() >= dto.getCity().getDistance() * DEFAULT_DELIVERY_BATTERY_COST
+  private List<Drone> filterByBatteryRequirement(List<Drone> drones, DroneLoadDto dto) {
+    int requiredBattery = dto.getCity().getDistance() * DEFAULT_DELIVERY_BATTERY_COST;
+    return drones.stream()
+      .filter(drone ->
+        drone.getBatteryPercentage() >= DEFAULT_DELIVERY_BATTERY_REQUIRED
+          && drone.getBatteryPercentage() >= requiredBattery
       )
       .toList();
+  }
 
-    if(optimalDrones.isEmpty()) {
-      responseDto.setMessage("All available drone does not meets the battery requirement.");
-      return responseDto;
-    }
+  private List<Drone> filterByWeightLimit(List<Drone> drones, DroneLoadDto dto, Medication medication) {
+    int requiredWeight = dto.getQuantity() * medication.getWeight();
+    return drones.stream()
+      .filter(drone -> drone.getWeightLimit() >= requiredWeight)
+      .toList();
+  }
 
-    // checking weight capacity
-    optimalDrones = optimalDrones
-      .stream()
-      .filter(v -> v.getWeightLimit() >= dto.getQuantity() * medication.getWeight())
+  private List<Drone> filterByCapacity(List<Drone> drones, DroneLoadDto dto) {
+    return drones.stream()
+      .filter(drone -> drone.getModel().getCapacity() >= dto.getQuantity())
       .sorted(
         Comparator.comparing(Drone::getModel)
-          .thenComparing(Comparator.comparingInt(Drone::getBatteryPercentage).reversed())
+          .thenComparing(
+            Comparator.comparingInt(Drone::getBatteryPercentage).reversed()
+          )
       )
       .toList();
+  }
 
-    if (optimalDrones.isEmpty()) {
-      responseDto.setMessage("The requested payload exceeds the capacity of all available drones.");
-      return responseDto;
-    }
-
-    Drone selectedDrone = null;
-    for (Drone prospectiveDrone : optimalDrones) {
-      if (prospectiveDrone.checkPermitLock()) {
-        selectedDrone = prospectiveDrone;
-        break;
+  private Drone lockDrone(List<Drone> drones) {
+    for (Drone drone : drones) {
+      if (drone.checkPermitLock()) {
+        return drone;
       }
     }
+    return null;
+  }
 
-    if (selectedDrone == null) {
-      responseDto.setMessage("All drones that meet the delivery requirements are currently in use. Please try again later.");
-      return responseDto;
-    }
-
+  private void processDroneLoading(Drone drone, DroneLoadDto dto, Medication medication) {
     try {
-      final Drone droneToLoad = selectedDrone;
-      droneToLoad.setState(DroneStateEnum.LOADING);
-      System.out.println("BATTERY: " + droneToLoad.getBatteryPercentage());
+      drone.setState(DroneStateEnum.LOADING);
       CompletableFuture.runAsync(() -> {
         try {
-          processMedication(droneToLoad, dto.getCity(), dto.getQuantity(), medication);
+          processMedication(drone, dto.getCity(), dto.getQuantity(), medication);
         } catch (Exception e) {
-          e.printStackTrace();
-          droneToLoad.setState(DroneStateEnum.IDLE);
+          drone.setState(DroneStateEnum.IDLE);
         } finally {
-          droneToLoad.releasePermitLock();
+          drone.releasePermitLock();
         }
       });
-      responseDto.setDroneSerial(droneToLoad.getSerialNumber());
-      responseDto.setMessage("Drone is now loading the medication ...");
     } catch (Exception e) {
-      e.printStackTrace();
-      selectedDrone.setState(DroneStateEnum.IDLE);
-      selectedDrone.releasePermitLock();
-      responseDto.setMessage("An unexpected error occurred while loading the medication.");
+      drone.setState(DroneStateEnum.IDLE);
+      drone.releasePermitLock();
+      throw e;
     }
-    return responseDto;
+  }
+
+  private DroneLoadResponseDto setDroneLoadResponse(String message) {
+    DroneLoadResponseDto response = new DroneLoadResponseDto();
+    response.setMessage(message);
+    return response;
   }
 
   @Override
@@ -172,13 +213,19 @@ public class DroneServiceImpl implements DroneService {
         .build();
     }
 
+    if(DroneStateEnum.IDLE.equals(drone.getState())) {
+      return DroneLoadStatusDto.builder()
+        .message("Drone is in idle state!")
+        .build();
+    }
+
     DroneSnapshot snapshot = drone.snapshot();
-
-    int totalWeight =
-      snapshot.getMedicationQuantity() * snapshot.getMedicationWeight();
-
+    int totalWeight = snapshot.getMedicationQuantity() * snapshot.getMedicationWeight();
     int currentWeight = snapshot.getCurrentWeight();
+    return setDroneLoadStatusResponse(snapshot, currentWeight, totalWeight);
+  }
 
+  private static DroneLoadStatusDto setDroneLoadStatusResponse(DroneSnapshot snapshot, int currentWeight, int totalWeight) {
     return DroneLoadStatusDto.builder()
       .droneSerialNumber(snapshot.getSerialNumber())
       .droneWeightCapacity(snapshot.getWeightLimit())

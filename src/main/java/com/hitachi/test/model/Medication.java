@@ -3,6 +3,7 @@ package com.hitachi.test.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
@@ -15,6 +16,7 @@ public class Medication {
   Long id;
 
   private String name;
+  @Setter
   private String code;
   private Integer weight;
   private String path;
