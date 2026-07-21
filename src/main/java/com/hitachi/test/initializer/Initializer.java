@@ -63,13 +63,13 @@ public class Initializer {
         "Amoxicillin",
         "MED002",
         75,
-        "amoxicillin.png"
+        "amoxicillin.jpg"
       ),
       new Medication(
         "Ibuprofen",
         "MED003",
         90,
-        "ibuprofen.jpeg"
+        "ibuprofen.jpg"
       )
     );
     medicationRepository.saveAll(medicationList);

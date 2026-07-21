@@ -265,11 +265,6 @@ Returns the current loading progress and medication information for a drone.
 ```
 GET /drone/check-drone-availability
 ```
-
-Returns the number of available drones grouped by model.
-
-Example:
-
 ```json
 {
   "message": "Drone availability is generated successfully",
@@ -282,6 +277,8 @@ Example:
   }
 }
 ```
+
+Returns the number of available drones grouped by model.
 
 ---
 
@@ -302,7 +299,7 @@ POST /drone/check-drone-battery
 }
 ```
 
-Returns the battery percentage of a specific drone.
+Returns the battery percentage of all drones.
 
 
 ---
@@ -319,12 +316,15 @@ Returns the battery percentage of a specific drone.
 ## Clone the Repository
 
 ```bash
-  git clone <repository-url>
+  git clone https://github.com/jcarlo2/hitachi-drone-delivery.git
+  cd hitachi-drone-delivery
 ```
 
 ---
 
-## Build
+## Build the Project
+
+Build the project and download all required dependencies.
 
 ```bash
   mvn clean install
@@ -332,29 +332,33 @@ Returns the battery percentage of a specific drone.
 
 ---
 
-## Run
+## Run the Application
+
+Start the Spring Boot application using Maven:
 
 ```bash
   mvn spring-boot:run
 ```
 
-or
+Alternatively, after building the project, run the generated JAR:
 
 ```bash
-  java -jar target/*.jar
+  java -jar target/hitachi-test-0.0.1-SNAPSHOT.jar
 ```
 
-Application starts on:
+> **Note:** Replace the JAR name if your generated artifact has a different version.
+
+---
+
+## Access the Application
+
+Once the application is running, it will be available at:
 
 ```
 http://localhost:8080
 ```
 
----
-
-# H2 Database
-
-H2 Console:
+### H2 Database Console
 
 ```
 http://localhost:8080/h2-console
@@ -362,11 +366,11 @@ http://localhost:8080/h2-console
 
 Configuration
 
-| Property | Value              |
-|----------|--------------------|
-| JDBC URL | jdbc:h2:mem:hitachi|
-| Username | sa                 |
-| Password | password           |
+| Property | Value               |
+|----------|---------------------|
+| JDBC URL | jdbc:h2:mem:hitachi |
+| Username | sa                  |
+| Password | password            |
 
 ---
 
