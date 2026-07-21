@@ -15,16 +15,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class Initializer {
   private final DroneRepository droneRepository;
   private final MedicationRepository medicationRepository;
   private final DummyRedisService redisService;
-  private final Executor executor = CompletableFuture.delayedExecutor(5000, TimeUnit.MILLISECONDS);
   final int BATTERY_RECHARGE_COUNT = 5;
 
   public Initializer(DroneRepository droneRepository, MedicationRepository medicationRepository, DummyRedisService redisService) {
